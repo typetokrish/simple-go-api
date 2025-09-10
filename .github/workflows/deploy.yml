@@ -9,6 +9,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: dev   # 👈 must match your environment name
+
 
     steps:
       # Checkout source code
