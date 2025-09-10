@@ -1,0 +1,50 @@
+name: Deploy to Cloud Run
+
+on:
+  workflow_dispatch:   # Trigger manually from GitHub Actions tab
+  push:
+    branches:
+      - master           # Optional: auto-deploy on push to main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout source code
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      # Authenticate with Google Cloud
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      # Set up gcloud CLI
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+
+      # Build & push image to Artifact Registry
+      - name: Build & Push Docker image
+        run: |
+          REGION=asia-south1
+          IMAGE_NAME=simple-go-api
+          IMAGE="asia-south1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/cloud-run-source-deploy/${IMAGE_NAME}:$GITHUB_SHA"
+
+          gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
+          docker build -t $IMAGE .
+          docker push $IMAGE
+
+      # Deploy to Cloud Run
+      - name: Deploy to Cloud Run
+        run: |
+          SERVICE=simple-go-api
+          REGION=asia-south1
+          IMAGE="asia-south1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/cloud-run-source-deploy/${SERVICE}:$GITHUB_SHA"
+
+          gcloud run deploy $SERVICE \
+            --image $IMAGE \
+            --region $REGION \
+            --platform managed \
+            --allow-unauthenticated
